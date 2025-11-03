@@ -163,5 +163,6 @@ export default function Index() {
                 </form>
             </Modal>
         </AuthenticatedLayout>
+        
     );
 }
