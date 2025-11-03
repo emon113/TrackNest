@@ -5,7 +5,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\NoteController;
-use App\Http\Controllers\NotebookController; // Make sure this is imported
+use App\Http\Controllers\NotebookController;
+use App\Http\Controllers\DashboardController; // <-- 1. IMPORT THE NEW CONTROLLER
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -16,10 +17,10 @@ Route::get('/', function () {
     ]);
 });
 
-// --- 1. 'verified' has been REMOVED from this route ---
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth'])->name('dashboard'); // <-- No more 'verified'
+// --- 2. UPDATE THE DASHBOARD ROUTE ---
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth'])->name('dashboard');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -27,8 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// --- 2. 'verified' has been REMOVED from this group ---
-Route::middleware(['auth'])->group(function () { // <-- No more 'verified'
+Route::middleware(['auth'])->group(function () {
 
     // Notes routes
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin'])->name('notes.togglePin');

@@ -4,20 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-// --- WE ARE REMOVING 'use Laravel\Scout\Searchable;' ---
 
 class Note extends Model
 {
-    // --- WE ARE REMOVING 'Searchable' from here ---
     use HasFactory;
 
     protected $fillable = ['title', 'content', 'is_pinned', 'notebook_id'];
 
     protected $casts = [
         'is_pinned' => 'boolean',
+        'created_at' => 'datetime', // <-- ADD THIS
+        'updated_at' => 'datetime', // <-- ADD THIS
     ];
-
-    // --- WE ARE REMOVING toSearchableArray() and searchableAs() ---
 
     public function user()
     {
