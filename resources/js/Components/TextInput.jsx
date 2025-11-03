@@ -1,30 +1,28 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useRef } from 'react';
 
 export default forwardRef(function TextInput(
     { type = 'text', className = '', isFocused = false, ...props },
-    ref,
+    ref
 ) {
-    const localRef = useRef(null);
-
-    useImperativeHandle(ref, () => ({
-        focus: () => localRef.current?.focus(),
-    }));
+    const input = ref ? ref : useRef();
 
     useEffect(() => {
         if (isFocused) {
-            localRef.current?.focus();
+            input.current.focus();
         }
-    }, [isFocused]);
+    }, []);
 
     return (
         <input
             {...props}
             type={type}
+            // --- THIS IS THE FIX ---
+            // We added all the 'dark:' classes and updated 'indigo' to 'primary'
             className={
-                'rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ' +
+                'border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-primary-500 dark:focus:border-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 rounded-md shadow-sm ' +
                 className
             }
-            ref={localRef}
+            ref={input}
         />
     );
 });

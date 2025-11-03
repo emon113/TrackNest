@@ -1,59 +1,109 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <h1 align="center">둥지 TrackNest</h1>
+  <h3 align="center">Your Unified Command Center for Notes, Tasks, & R&D</h3>
 </p>
 
-## About Laravel
+<p align="center">
+  <img alt="Laravel" src="https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB">
+  <img alt="Inertia.js" src="https://img.shields.io/badge/Inertia.js-9553E9?style=for-the-badge&logo=inertia&logoColor=white">
+  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white">
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white">
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## ✨ Overview
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**TrackNest** is a modern, aesthetic, all-in-one productivity app designed for developers, researchers, and creators.  
+It combines a powerful note-taking system with a drag-and-drop task manager — helping you stop switching tabs and start focusing on your work.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🎨 The Aesthetic
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+A core feature of TrackNest is its calm, *"premium neutral"* design.
 
-## Laravel Sponsors
+- **Aesthetic Theme:** A custom theme built on a zinc color palette with a teal primary accent.  
+- **Light & Dark Mode:** Automatically detects your system preference.  
+- **Responsive:** Fully optimized for desktop, tablet, and mobile.  
+- **PWA Ready:** Can be installed as a Progressive Web App (desktop or mobile).  
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 🗒️ Notes Module (Complete)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+A complete, full-stack system for capturing and organizing your ideas.
 
-## Contributing
+- **Full CRUD:** Create, Read, Update, and Delete notes.  
+- **Rich Text Editor:** Powered by TipTap with code highlighting, headings, and lists.  
+- **Organization:**
+  - **Notebooks:** Group notes into separate notebooks.  
+  - **Tags:** Apply multiple tags to any note (many-to-many relationship).  
+  - **Pinning:** Pin important notes to the top of your list.  
+- **Powerful Search:** Fast, simple search that filters notes by title and content (powered by Eloquent `LIKE`).  
+- **Dashboard Integration:** Pinned notes and recent activity appear on your main dashboard.  
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## ✅ To-Do Module (Kanban) — *In Progress*
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The next major feature currently under development.
 
-## Security Vulnerabilities
+- **Kanban Board:** Drag-and-drop tasks between *To-Do*, *Doing*, and *Done*.  
+- **Deadlines:** Assign due dates to tasks.  
+- **Task Management:** Full CRUD support.  
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🧭 Dashboard
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Your app’s **command center** — an at-a-glance summary of your work.
+
+- **Stats Widget:** Shows total notes, notebooks, and tags.  
+- **Pinned Notes Widget:** Quick access to your top notes.  
+- **Recent Activity Widget:** Displays your last 5 notes.  
+
+---
+
+## 📸 Screenshots
+
+> *(Replace with your own images — create a `.github/img` folder and add your screenshots there.)*
+
+- Dashboard  
+- Notes (Grid View)  
+- Welcome Page  
+- Note Editor  
+
+---
+
+## 🛠️ Technology Stack
+
+TrackNest is a modern “monolith” built with the **LIRR stack**.
+
+### Backend
+- **Laravel:** Core backend framework (PHP).  
+- **MySQL:** Database.  
+- **Laravel Scout:** Powers the search feature using the built-in database driver.  
+
+### Frontend
+- **Inertia.js:** Connects Laravel to React seamlessly.  
+- **React:** Frontend library.  
+- **Tailwind CSS:** For utility-first, aesthetic design.  
+- **Vite:** Lightning-fast frontend bundler.  
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+Ensure you have the following installed:
+- PHP ≥ 8.2  
+- Composer  
+- Node.js & npm  
+- Local MySQL database  
+
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/your-username/tracknest.git
+cd tracknest

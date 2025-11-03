@@ -1,19 +1,16 @@
 import { Link } from '@inertiajs/react';
 
-export default function ResponsiveNavLink({
-    active = false,
-    className = '',
-    children,
-    ...props
-}) {
+export default function ResponsiveNavLink({ active = false, className = '', children, ...props }) {
     return (
         <Link
             {...props}
-            className={`flex w-full items-start border-l-4 py-2 pe-4 ps-3 ${
+            className={`w-full flex items-start ps-3 pe-4 py-2 border-l-4 ${
                 active
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-700 focus:border-indigo-700 focus:bg-indigo-100 focus:text-indigo-800'
-                    : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800 focus:border-gray-300 focus:bg-gray-50 focus:text-gray-800'
-            } text-base font-medium transition duration-150 ease-in-out focus:outline-none ${className}`}
+                    // --- THESE ARE THE CHANGES ---
+                    // We now use your 'primary' color for the border, text, and background
+                    ? 'border-primary-500 dark:border-primary-600 text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/50 focus:text-primary-800 dark:focus:text-primary-200 focus:bg-primary-100 dark:focus:bg-primary-900 focus:border-primary-700 dark:focus:border-primary-300'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus:text-gray-800 dark:focus:text-gray-200 focus:bg-gray-50 dark:focus:bg-gray-700 focus:border-gray-300 dark:focus:border-gray-600'
+            } text-base font-medium focus:outline-none transition duration-150 ease-in-out ${className}`}
         >
             {children}
         </Link>

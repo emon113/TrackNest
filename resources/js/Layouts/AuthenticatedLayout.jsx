@@ -5,6 +5,7 @@ import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'react-hot-toast';
+import ThemeToggle from '@/Components/ThemeToggle'; // <-- 1. IMPORT THE NEW BUTTON
 
 export default function Authenticated({ user, header, children }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
@@ -49,8 +50,6 @@ export default function Authenticated({ user, header, children }) {
                                 >
                                     Notes
                                 </NavLink>
-
-                                {/* --- 1. ADD THIS NEW NAVLINK --- */}
                                 <NavLink
                                     href={route('notebooks.index')}
                                     active={route().current().startsWith('notebooks')}
@@ -61,6 +60,12 @@ export default function Authenticated({ user, header, children }) {
                         </div>
 
                         <div className="hidden sm:flex sm:items-center sm:ms-6">
+
+                            {/* --- 2. ADD THE BUTTON HERE --- */}
+                            <div className="me-3">
+                                <ThemeToggle />
+                            </div>
+
                             <div className="ms-3 relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -123,7 +128,6 @@ export default function Authenticated({ user, header, children }) {
                     </div>
                 </div>
 
-                {/* --- 2. ADD THE LINK TO THE RESPONSIVE MENU --- */}
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
@@ -144,9 +148,13 @@ export default function Authenticated({ user, header, children }) {
                     </div>
 
                     <div className="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
-                        <div className="px-4">
-                            <div className="font-medium text-base text-gray-800 dark:text-gray-200">{user.name}</div>
-                            <div className="font-medium text-sm text-gray-500">{user.email}</div>
+                        {/* --- 3. ADD THE BUTTON TO MOBILE MENU --- */}
+                        <div className="flex justify-between items-center px-4">
+                            <div>
+                                <div className="font-medium text-base text-gray-800 dark:text-gray-200">{user.name}</div>
+                                <div className="font-medium text-sm text-gray-500">{user.email}</div>
+                            </div>
+                            <ThemeToggle />
                         </div>
 
                         <div className="mt-3 space-y-1">

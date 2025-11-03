@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import colors from 'tailwindcss/colors'; // <-- Make sure this is still here
+import colors from 'tailwindcss/colors';
 
 export default defineConfig({
     plugins: [
@@ -14,25 +14,29 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+
+            // --- WE REMOVED outDir and filename ---
+            // Let the Laravel plugin handle the build path.
+
             manifest: {
-                // --- UPDATE THESE ---
                 name: 'TrackNest',
                 short_name: 'TrackNest',
                 description: 'Your unified command center for tasks, notes, and research.',
-                // --- END OF UPDATES ---
-                theme_color: colors.zinc[900], // Matches your dark mode
+                theme_color: colors.zinc[900],
                 background_color: colors.zinc[900],
                 display: 'standalone',
                 scope: '/',
                 start_url: '/',
                 icons: [
                     {
-                        src: 'pwa-192x192.png',
+                        // --- THIS IS THE FIX ---
+                        src: '/pwa-192x192.png', // Added leading "/"
                         sizes: '192x192',
                         type: 'image/png',
                     },
                     {
-                        src: 'pwa-512x512.png',
+                        // --- THIS IS THE FIX ---
+                        src: '/pwa-512x512.png', // Added leading "/"
                         sizes: '512x512',
                         type: 'image/png',
                     },
