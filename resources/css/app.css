@@ -1,0 +1,15 @@
+/* These 3 lines MUST be at the very top */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* This targets the editor content area */
+.ProseMirror {
+    @apply prose dark:prose-invert prose-sm sm:prose-base max-w-none;
+    @apply focus:outline-none;
+}
+
+/* Style for the code blocks */
+.ProseMirror pre {
+    @apply bg-gray-800 text-white rounded-lg p-4;
+}
