@@ -5,7 +5,7 @@ import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'react-hot-toast';
-import ThemeToggle from '@/Components/ThemeToggle'; // <-- 1. IMPORT THE NEW BUTTON
+import ThemeToggle from '@/Components/ThemeToggle';
 
 export default function Authenticated({ user, header, children }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
@@ -27,7 +27,7 @@ export default function Authenticated({ user, header, children }) {
     }, [flash]);
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
             <Toaster />
 
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
@@ -56,12 +56,24 @@ export default function Authenticated({ user, header, children }) {
                                 >
                                     Notebooks
                                 </NavLink>
+                                <NavLink
+                                    href={route('boards.index')}
+                                    active={route().current().startsWith('boards') || route().current().startsWith('tasks')}
+                                >
+                                    Tasks
+                                </NavLink>
+                                {/* --- 1. ADD THIS NEW NAVLINK --- */}
+                                <NavLink
+                                    href={route('activity.index')}
+                                    active={route().current('activity.index')}
+                                >
+                                    Activity
+                                </NavLink>
                             </div>
                         </div>
 
                         <div className="hidden sm:flex sm:items-center sm:ms-6">
 
-                            {/* --- 2. ADD THE BUTTON HERE --- */}
                             <div className="me-3">
                                 <ThemeToggle />
                             </div>
@@ -128,6 +140,7 @@ export default function Authenticated({ user, header, children }) {
                     </div>
                 </div>
 
+                {/* --- 2. ADD THE LINK TO THE RESPONSIVE MENU --- */}
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
@@ -145,10 +158,21 @@ export default function Authenticated({ user, header, children }) {
                         >
                             Notebooks
                         </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('boards.index')}
+                            active={route().current().startsWith('boards') || route().current().startsWith('tasks')}
+                        >
+                            Tasks
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('activity.index')}
+                            active={route().current('activity.index')}
+                        >
+                            Activity
+                        </ResponsiveNavLink>
                     </div>
 
                     <div className="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
-                        {/* --- 3. ADD THE BUTTON TO MOBILE MENU --- */}
                         <div className="flex justify-between items-center px-4">
                             <div>
                                 <div className="font-medium text-base text-gray-800 dark:text-gray-200">{user.name}</div>
@@ -168,12 +192,14 @@ export default function Authenticated({ user, header, children }) {
             </nav>
 
             {header && (
-                <header className="bg-white dark:bg-gray-800 shadow">
+                <header className="bg-white dark:bg-zinc-800 shadow-sm flex-shrink-0">
                     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">{header}</div>
                 </header>
             )}
 
-            <main>{children}</main>
+            <main className="flex-1 flex flex-col overflow-hidden">
+                {children}
+            </main>
         </div>
     );
 }

@@ -5,8 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Note;
-use App\Models\Notebook;
-use App\Models\Tag;
+use App\Models\Task; // <-- 1. Import Task
 
 class DashboardController extends Controller
 {
@@ -17,30 +16,43 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        // 1. Get stats for the "At a Glance" widget
+        // 2. Get stats (UPDATED)
         $stats = [
             'notes' => $user->notes()->count(),
             'notebooks' => $user->notebooks()->count(),
-            'tags' => $user->tags()->count(),
+            'boards' => $user->boards()->count(), // <-- NEW
+            'tasks' => $user->tasks()->where('status', '!=', 'done')->count(), // <-- NEW (Only pending)
         ];
 
-        // 2. Get the 5 most recently updated notes
-        $recentNotes = $user->notes()
-            ->latest('updated_at')
-            ->take(5)
-            ->get(['id', 'title', 'updated_at']);
-
-        // 3. Get up to 5 pinned notes
+        // 3. Get pinned notes (Unchanged)
         $pinnedNotes = $user->notes()
             ->where('is_pinned', true)
             ->latest('updated_at')
             ->take(5)
             ->get();
 
+        // 4. Get upcoming deadlines (NEW)
+        $upcomingDeadlines = $user->tasks()
+            ->with('board:id,name') // Optimize query
+            ->where('status', '!=', 'done')
+            ->where('deadline', '>=', now())
+            ->orderBy('deadline', 'asc')
+            ->take(5)
+            ->get();
+
+        // 5. Get "To-Do" tasks (NEW)
+        $myTodos = $user->tasks()
+            ->with('board:id,name') // Optimize query
+            ->where('status', 'todo')
+            ->orderBy('order', 'asc')
+            ->take(5)
+            ->get();
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
-            'recentNotes' => $recentNotes,
             'pinnedNotes' => $pinnedNotes,
+            'upcomingDeadlines' => $upcomingDeadlines, // <-- Pass new data
+            'myTodos' => $myTodos,                   // <-- Pass new data
         ]);
     }
 }
