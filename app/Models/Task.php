@@ -12,27 +12,21 @@ class Task extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'title',
-        'description',
-        'status',
-        'order',
-        'deadline',
-        'user_id',
-        'assigned_by_id',
-        'assigned_to_id',
-        'board_id', // <--- CRITICAL: This must be here
-        'column_id'
+        'title', 'description', 'status', 'order', 'deadline',
+        'user_id', 'assigned_by_id', 'assigned_to_id', 'board_id', 'column_id'
     ];
 
     protected $casts = [
         'deadline' => 'datetime',
     ];
 
+    // --- THIS IS THE CHANGE ---
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['title', 'column_id', 'assigned_to_id'])
-            ->logOnlyDirty()
+            ->logFillable() // <--- Log ALL fillable fields
+            ->logOnlyDirty() // Only log what actually changed
+            ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Task '{$this->title}' was {$eventName}");
     }
 

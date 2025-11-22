@@ -23,10 +23,8 @@ class TaskController extends Controller
         if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
             abort(403);
         }
-
         $board->load(['columns.tasks.assignedTo', 'columns.tasks.assignedBy']);
         $allMembers = $board->collaborators->push($board->user);
-
         return Inertia::render('Tasks/Index', [
             'board' => $board,
             'columns' => $board->columns,
@@ -51,7 +49,6 @@ class TaskController extends Controller
 
         $maxOrder = Task::where('column_id', $request->column_id)->max('order');
 
-        // Create the task explicitly so we have the object
         $task = Task::create([
             'title' => $request->title,
             'description' => $request->description,
@@ -66,10 +63,13 @@ class TaskController extends Controller
 
         $task->refresh();
 
-        // --- NOTIFICATION: Task Created & Assigned ---
         if ($request->assigned_to_id && $request->assigned_to_id !== auth()->id()) {
             $assignee = User::find($request->assigned_to_id);
             $assignee->notify(new TaskAssigned($task, auth()->user()));
+
+            activity()
+                ->performedOn($task)
+                ->log("You assigned task '{$task->title}' to {$assignee->name}");
         }
 
         return Redirect::back()->with('success', 'Task created.');
@@ -77,13 +77,16 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
-        if (!$task->board) return Redirect::back()->with('error', 'Orphan task.');
-
         $board = $task->board;
-        $user = auth()->user();
 
-        if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
-            abort(403);
+        // Handle orphan tasks safely
+        if ($board) {
+            $user = auth()->user();
+            if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
+                abort(403);
+            }
+        } else {
+            if ($task->user_id !== auth()->id()) abort(403);
         }
 
         $request->validate([
@@ -100,7 +103,6 @@ class TaskController extends Controller
             'description' => $request->description,
             'deadline' => $request->deadline,
             'assigned_to_id' => $request->assigned_to_id,
-            // Only update 'assigned_by' if the assignee actually changed
             'assigned_by_id' => ($request->assigned_to_id && $request->assigned_to_id != $oldAssigneeId)
                                 ? auth()->id()
                                 : $task->assigned_by_id,
@@ -108,17 +110,13 @@ class TaskController extends Controller
 
         $task->refresh();
 
-        // --- NOTIFICATION: Task Re-Assigned ---
-        // Only notify if:
-        // 1. There is an assignee
-        // 2. The assignee CHANGED (don't spam updates)
-        // 3. The assignee is not ME (don't notify myself)
-        if ($request->assigned_to_id
-            && $request->assigned_to_id != $oldAssigneeId
-            && $request->assigned_to_id !== auth()->id()) {
-
+        if ($request->assigned_to_id && $request->assigned_to_id != $oldAssigneeId && $request->assigned_to_id !== auth()->id()) {
             $assignee = User::find($request->assigned_to_id);
             $assignee->notify(new TaskAssigned($task, auth()->user()));
+
+            activity()
+                ->performedOn($task)
+                ->log("You assigned task '{$task->title}' to {$assignee->name}");
         }
 
         return Redirect::back()->with('success', 'Task updated.');
@@ -144,6 +142,7 @@ class TaskController extends Controller
         $oldOrder = $task->order;
         $newOrder = $request->order;
 
+        // --- FIX: Removed Task::withoutLogs() wrapper to prevent crash ---
         DB::transaction(function () use ($task, $oldColumnId, $newColumnId, $oldOrder, $newOrder) {
             if ($oldColumnId == $newColumnId) {
                 if ($newOrder < $oldOrder) {
@@ -157,13 +156,17 @@ class TaskController extends Controller
             }
             $task->update(['column_id' => $newColumnId, 'order' => $newOrder]);
         });
+        // --- END FIX ---
 
-        // --- NOTIFICATION: Task Moved ---
         if ($oldColumnId != $newColumnId) {
             $newColumn = Column::find($newColumnId);
-            $usersToNotify = $board->collaborators->push($board->user);
+            $oldColumn = Column::find($oldColumnId);
 
-            // Don't notify myself
+            activity()
+                ->performedOn($task)
+                ->log("You moved task '{$task->title}' from {$oldColumn->name} to {$newColumn->name}");
+
+            $usersToNotify = $board->collaborators->push($board->user);
             $usersToNotify = $usersToNotify->reject(fn($u) => $u->id === $user->id);
 
             if($usersToNotify->count() > 0) {
@@ -185,6 +188,7 @@ class TaskController extends Controller
             if ($task->user_id !== $user->id) abort(403);
         }
 
+        $title = $task->title;
         $task->delete();
 
         if ($task->column_id) {

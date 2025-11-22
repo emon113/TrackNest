@@ -16,31 +16,14 @@ class Board extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'description'])
-            ->setDescriptionForEvent(fn(string $eventName) => "You {$eventName} the board '{$this->name}'");
+            ->logFillable() // <--- Log ALL fields
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "Board '{$this->name}' was {$eventName}");
     }
 
-    // The owner
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    // The columns (dynamic status)
-    public function columns()
-    {
-        return $this->hasMany(Column::class)->orderBy('order');
-    }
-
-    // The collaborators (people you shared with)
-    public function collaborators()
-    {
-        return $this->belongsToMany(User::class, 'board_user');
-    }
-
-    // Helper to get ALL tasks in the board through columns
-    public function tasks()
-    {
-        return $this->hasManyThrough(Task::class, Column::class);
-    }
+    public function user() { return $this->belongsTo(User::class); }
+    public function columns() { return $this->hasMany(Column::class)->orderBy('order'); }
+    public function collaborators() { return $this->belongsToMany(User::class, 'board_user'); }
+    public function tasks() { return $this->hasManyThrough(Task::class, Column::class); }
 }

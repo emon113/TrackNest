@@ -3,13 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Board;
-use App\Models\User; // <-- IMPORT
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
-use Illuminate\Validation\Rule;
-use App\Notifications\AddedToBoard; // <-- IMPORT
+use App\Notifications\AddedToBoard;
 
 class BoardController extends Controller
 {
@@ -49,10 +48,13 @@ class BoardController extends Controller
             if ($request->has('collaborators')) {
                 $board->collaborators()->sync($request->collaborators);
 
-                // --- NOTIFICATION TRIGGER ---
                 $users = User::whereIn('id', $request->collaborators)->get();
                 foreach($users as $user) {
                     $user->notify(new AddedToBoard($board, auth()->user()));
+                    // --- LOG: Added Collaborator ---
+                    activity()
+                        ->performedOn($board)
+                        ->log("You added {$user->name} to board '{$board->name}'");
                 }
             }
         });
@@ -93,14 +95,25 @@ class BoardController extends Controller
 
             $board->collaborators()->sync($newIds);
 
-            // Calculate who is NEW
+            // Log additions
             $addedIds = array_diff($newIds, $originalIds);
             if (!empty($addedIds)) {
                 $addedUsers = User::whereIn('id', $addedIds)->get();
                 foreach($addedUsers as $user) {
                     $user->notify(new AddedToBoard($board, auth()->user()));
+                    activity()->performedOn($board)->log("You added {$user->name} to board '{$board->name}'");
                 }
             }
+
+            // Log removals
+            $removedIds = array_diff($originalIds, $newIds);
+            if (!empty($removedIds)) {
+                $removedUsers = User::whereIn('id', $removedIds)->get();
+                foreach($removedUsers as $user) {
+                    activity()->performedOn($board)->log("You removed {$user->name} from board '{$board->name}'");
+                }
+            }
+
         } else {
             $board->collaborators()->detach();
         }
