@@ -3,94 +3,115 @@
 namespace App\Http\Controllers;
 
 use App\Models\Board;
+use App\Models\User; // <-- IMPORT
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rule;
+use App\Notifications\AddedToBoard; // <-- IMPORT
 
 class BoardController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     * This will be our new "Tasks" landing page.
-     */
     public function index()
     {
-        $boards = auth()->user()->boards()
-            ->withCount('tasks')
-            ->latest()
-            ->get();
+        $user = auth()->user();
+        $myBoards = $user->boards()->withCount('tasks')->latest()->get();
+        $sharedBoards = $user->sharedBoards()->withCount('tasks')->latest()->get();
 
         return Inertia::render('Boards/Index', [
-            'boards' => $boards
+            'boards' => $myBoards->merge($sharedBoards),
+            'myContacts' => $user->accepted_contacts,
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => [
-                'required', 'string', 'max:255',
-                Rule::unique('boards')->where('user_id', auth()->id()),
-            ],
+        $request->validate([
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'collaborators' => 'nullable|array',
+            'collaborators.*' => 'exists:users,id',
         ]);
 
-        auth()->user()->boards()->create($validated);
+        DB::transaction(function () use ($request) {
+            $board = auth()->user()->boards()->create([
+                'name' => $request->name,
+                'description' => $request->description,
+            ]);
+
+            $board->columns()->createMany([
+                ['name' => 'To Do', 'order' => 0],
+                ['name' => 'Doing', 'order' => 1],
+                ['name' => 'Done', 'order' => 2],
+            ]);
+
+            if ($request->has('collaborators')) {
+                $board->collaborators()->sync($request->collaborators);
+
+                // --- NOTIFICATION TRIGGER ---
+                $users = User::whereIn('id', $request->collaborators)->get();
+                foreach($users as $user) {
+                    $user->notify(new AddedToBoard($board, auth()->user()));
+                }
+            }
+        });
 
         return Redirect::back()->with('success', 'Board created.');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Board $board)
     {
-        if ($board->user_id !== auth()->id()) {
-            abort(403);
-        }
+        if ($board->user_id !== auth()->id()) abort(403);
+        $board->load('collaborators');
 
         return Inertia::render('Boards/Edit', [
-            'board' => $board
+            'board' => $board,
+            'myContacts' => auth()->user()->accepted_contacts,
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Board $board)
     {
-        if ($board->user_id !== auth()->id()) {
-            abort(403);
-        }
+        if ($board->user_id !== auth()->id()) abort(403);
 
-        $validated = $request->validate([
-            'name' => [
-                'required', 'string', 'max:255',
-                Rule::unique('boards')->where('user_id', auth()->id())->ignore($board->id),
-            ],
+        $request->validate([
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'collaborators' => 'nullable|array',
+            'collaborators.*' => 'exists:users,id',
         ]);
 
-        $board->update($validated);
+        $board->update([
+            'name' => $request->name,
+            'description' => $request->description,
+        ]);
+
+        if ($request->has('collaborators')) {
+            $originalIds = $board->collaborators->pluck('id')->toArray();
+            $newIds = $request->collaborators;
+
+            $board->collaborators()->sync($newIds);
+
+            // Calculate who is NEW
+            $addedIds = array_diff($newIds, $originalIds);
+            if (!empty($addedIds)) {
+                $addedUsers = User::whereIn('id', $addedIds)->get();
+                foreach($addedUsers as $user) {
+                    $user->notify(new AddedToBoard($board, auth()->user()));
+                }
+            }
+        } else {
+            $board->collaborators()->detach();
+        }
 
         return Redirect::route('boards.index')->with('success', 'Board updated.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Board $board)
     {
-        if ($board->user_id !== auth()->id()) {
-            abort(403);
-        }
-
+        if ($board->user_id !== auth()->id()) abort(403);
         $board->delete();
-
         return Redirect::route('boards.index')->with('success', 'Board deleted.');
     }
 }

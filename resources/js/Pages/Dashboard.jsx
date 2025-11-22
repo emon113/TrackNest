@@ -1,11 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, Link } from '@inertiajs/react';
-import { StarIcon, BookOpenIcon, TagIcon, PencilIcon, ArrowRightIcon, CalendarIcon, ViewColumnsIcon, CheckCircleIcon, FireIcon } from '@heroicons/react/24/outline';
+import { StarIcon, BookOpenIcon, TagIcon, PencilIcon, ArrowRightIcon, CalendarIcon, ViewColumnsIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { format, parseISO, isToday, isTomorrow, isPast } from 'date-fns';
 
-// --- THIS IS THE CRITICAL IMPORT LINE ---
-import { format, parseISO, isPast, isToday, isTomorrow } from 'date-fns';
-
-// --- Reusable StatCard Component (No changes) ---
 const StatCard = ({ icon, label, value }) => (
     <div className="bg-gray-100 dark:bg-zinc-800/50 p-4 rounded-lg flex items-center gap-4">
         <div className="p-2 bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-300 rounded-full">
@@ -18,7 +15,6 @@ const StatCard = ({ icon, label, value }) => (
     </div>
 );
 
-// --- Reusable ListItem Component (No changes) ---
 const ListItem = ({ href, icon, title, subtitle, tag, tagColor }) => (
     <Link
         href={href}
@@ -31,7 +27,7 @@ const ListItem = ({ href, icon, title, subtitle, tag, tagColor }) => (
                 <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
             </div>
             {tag && (
-                <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${tagColor}`}>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${tagColor}`}>
                     {tag}
                 </span>
             )}
@@ -40,24 +36,21 @@ const ListItem = ({ href, icon, title, subtitle, tag, tagColor }) => (
     </Link>
 );
 
-// --- The Main Dashboard Component ---
 export default function Dashboard() {
 
     const { auth, stats, pinnedNotes, upcomingDeadlines, myTodos } = usePage().props;
 
-    // --- Helper for Deadline Colors ---
-    // This function will now work because `isPast`, `isToday`, etc. are imported
     const getDeadlineInfo = (deadline) => {
         if (!deadline) return null;
         const deadLineDate = parseISO(deadline);
 
         if (isPast(deadLineDate) && !isToday(deadLineDate)) {
-            return { label: format(deadLineDate, 'MMM d'), color: 'text-red-500', title: 'Overdue' };
+            return { label: format(deadLineDate, 'MMM d'), color: 'text-red-500 bg-red-50 dark:bg-red-900/20', title: 'Overdue' };
         }
         if (isToday(deadLineDate) || isTomorrow(deadLineDate)) {
-            return { label: isToday(deadLineDate) ? 'Today' : 'Tomorrow', color: 'text-amber-600 dark:text-amber-500', title: 'Due Soon' };
+            return { label: isToday(deadLineDate) ? 'Today' : 'Tomorrow', color: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20', title: 'Due Soon' };
         }
-        return { label: format(deadLineDate, 'MMM d'), color: 'text-gray-500 dark:text-gray-400', title: 'Upcoming' };
+        return { label: format(deadLineDate, 'MMM d'), color: 'text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800', title: 'Upcoming' };
     };
 
     return (
@@ -76,10 +69,9 @@ export default function Dashboard() {
                         <p className="text-gray-500 dark:text-gray-400">Here's your summary for today.</p>
                     </div>
 
-                    {/* --- 2x2 WIDGET GRID LAYOUT --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                        {/* --- WIDGET 1: AT A GLANCE --- */}
+                        {/* Stats */}
                         <div className="bg-white dark:bg-zinc-800 overflow-hidden shadow-lg sm:rounded-lg">
                             <div className="p-6">
                                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">At a Glance</h4>
@@ -92,7 +84,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* --- WIDGET 2: UPCOMING DEADLINES --- */}
+                        {/* Upcoming Deadlines */}
                         <div className="bg-white dark:bg-zinc-800 overflow-hidden shadow-lg sm:rounded-lg">
                             <div className="p-6">
                                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Upcoming Deadlines</h4>
@@ -104,9 +96,9 @@ export default function Dashboard() {
                                                 <ListItem
                                                     key={task.id}
                                                     href={route('tasks.index', { board: task.board_id })}
-                                                    icon={<CalendarIcon className={`h-5 w-5 ${deadline.color}`} />}
+                                                    icon={<CalendarIcon className="h-5 w-5" />}
                                                     title={task.title}
-                                                    subtitle={`in ${task.board.name}`}
+                                                    subtitle={`in ${task.board ? task.board.name : 'Unknown Board'}`}
                                                     tag={deadline.label}
                                                     tagColor={deadline.color}
                                                 />
@@ -119,7 +111,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* --- WIDGET 3: PINNED NOTES --- */}
+                        {/* Pinned Notes */}
                         <div className="bg-white dark:bg-zinc-800 overflow-hidden shadow-lg sm:rounded-lg">
                             <div className="p-6">
                                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pinned Notes</h4>
@@ -141,7 +133,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* --- WIDGET 4: MY TO-DOS --- */}
+                        {/* My To-Dos */}
                         <div className="bg-white dark:bg-zinc-800 overflow-hidden shadow-lg sm:rounded-lg">
                             <div className="p-6">
                                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">My To-Do List</h4>
@@ -153,7 +145,7 @@ export default function Dashboard() {
                                                 href={route('tasks.index', { board: task.board_id })}
                                                 icon={<CheckCircleIcon className="h-5 w-5" />}
                                                 title={task.title}
-                                                subtitle={`in ${task.board.name}`}
+                                                subtitle={`in ${task.board ? task.board.name : 'Unknown Board'}`}
                                             />
                                         ))
                                     ) : (

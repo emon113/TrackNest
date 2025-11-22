@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, useForm, Link, router } from '@inertiajs/react';
-import { PlusIcon, TrashIcon, ClockIcon, Bars3Icon, UserIcon, FireIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ClockIcon, Bars3Icon, UserIcon, FireIcon, CheckCircleIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
@@ -10,7 +10,7 @@ import Modal from '@/Components/Modal';
 import { format, parseISO, isPast, isToday, isTomorrow } from 'date-fns';
 import {
     DndContext,
-    closestCenter,
+    closestCorners, // Better for columns
     PointerSensor,
     useSensor,
     useSensors,
@@ -20,33 +20,18 @@ import {
     SortableContext,
     useSortable,
     verticalListSortingStrategy,
-    arrayMove, // <-- 1. Import 'arrayMove' for easier sorting
+    arrayMove,
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
-// --- SortableTaskCard (ID is a STRING) ---
+// --- 1. Sortable Wrapper ---
 const SortableTaskCard = ({ task, onClick }) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: task.id.toString(), // String ID
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: `task-${task.id}`, // PREFIX ADDED
         data: { type: 'Task', task }
     });
-
-    // --- THIS IS THE ANIMATION ---
-    // The 'transition' prop from dnd-kit is what makes it smooth
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : 1,
-    };
-
+    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
             <TaskCard task={task} onClick={onClick} />
@@ -54,359 +39,293 @@ const SortableTaskCard = ({ task, onClick }) => {
     );
 };
 
-// --- TaskCard (No changes) ---
+// --- 2. Task Card (Visual) ---
 const TaskCard = ({ task, onClick }) => {
-    const handleDelete = (e) => e.stopPropagation();
+    const handleDelete = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (confirm('Are you sure you want to delete this task?')) {
+            router.delete(route('tasks.destroy', task.id), { preserveScroll: true });
+        }
+    };
     const getDeadlineInfo = () => {
         if (!task.deadline) return null;
-        const deadLineDate = parseISO(task.deadline);
-        if (isPast(deadLineDate) && !isToday(deadLineDate)) {
-            return { label: format(deadLineDate, 'MMM d'), icon: <FireIcon className="h-4 w-4" />, color: 'text-red-500', title: `Overdue: ${format(deadLineDate, 'MMM d, yyyy')}` };
-        }
-        if (isToday(deadLineDate) || isTomorrow(deadLineDate)) {
-            return { label: isToday(deadLineDate) ? 'Today' : 'Tomorrow', icon: <ClockIcon className="h-4 w-4" />, color: 'text-amber-600 dark:text-amber-500', title: `Due ${format(deadLineDate, 'MMM d, yyyy')}` };
-        }
-        return { label: format(deadLineDate, 'MMM d'), icon: <CheckCircleIcon className="h-4 w-4" />, color: 'text-gray-500 dark:text-gray-400', title: `Due ${format(deadLineDate, 'MMM d, yyyy')}` };
+        const date = parseISO(task.deadline);
+        if (isPast(date) && !isToday(date)) return { label: format(date, 'MMM d'), icon: <FireIcon className="h-4 w-4" />, color: 'text-red-500' };
+        return { label: format(date, 'MMM d'), icon: <ClockIcon className="h-4 w-4" />, color: 'text-gray-500 dark:text-gray-400' };
     };
     const deadlineInfo = getDeadlineInfo();
+
     return (
-        <div onClick={onClick} className="p-4 bg-white dark:bg-zinc-700 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-600 cursor-pointer group transition-all duration-150 ease-in-out hover:shadow-md hover:ring-2 hover:ring-primary-500">
+        <div onClick={onClick} className="p-4 bg-white dark:bg-zinc-700 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-600 cursor-pointer group hover:ring-2 hover:ring-primary-500 transition-all">
             <div className="flex justify-between items-start">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.title}</p>
-                <Link href={route('tasks.destroy', task.id)} method="delete" as="button" className="p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-red-500 transition-opacity" onBefore={() => confirm('Are you sure you want to delete this task?')} onClick={handleDelete}>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 flex-1 mr-2">{task.title}</p>
+                <button onClick={handleDelete} className="p-1 rounded-full opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-zinc-600 transition-all">
                     <TrashIcon className="h-4 w-4" />
-                </Link>
+                </button>
             </div>
             <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center space-x-3">
-                    {task.description && (<Bars3Icon className="h-4 w-4 text-gray-400" title="This task has a description" />)}
-                    {deadlineInfo && (<div className={`flex items-center gap-1 text-xs font-medium ${deadlineInfo.color}`} title={deadlineInfo.title}>{deadlineInfo.icon}<span>{deadlineInfo.label}</span></div>)}
+                    {task.description && <Bars3Icon className="h-4 w-4 text-gray-400" title="Has description" />}
+                    {deadlineInfo && <div className={`flex items-center gap-1 text-xs font-medium ${deadlineInfo.color}`}>{deadlineInfo.icon}<span>{deadlineInfo.label}</span></div>}
                 </div>
-                {task.assigned_by && (<div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 bg-gray-100 dark:bg-zinc-800 rounded-full" title={`Assigned by ${task.assigned_by}`}><UserIcon className="h-3 w-3" /><span className="truncate max-w-[100px]">{task.assigned_by}</span></div>)}
-            </div>
-        </div>
-    );
-};
-
-// --- KanbanColumn (No changes) ---
-const KanbanColumn = ({ status, title, color, onAddTaskClick, taskCount, children }) => {
-    const { setNodeRef, isOver } = useDroppable({
-        id: status, data: { type: 'Column', status: status }
-    });
-    return (
-        <div ref={setNodeRef} className={`flex flex-col flex-shrink-0 flex-1 min-w-[300px] max-w-sm bg-gray-200 dark:bg-zinc-800 rounded-xl transition-all duration-150 ${isOver ? 'ring-2 ring-primary-500' : ''}`}>
-            <div className="flex justify-between items-center p-4 border-b border-gray-300 dark:border-zinc-700">
                 <div className="flex items-center gap-2">
-                    <span className={`h-3 w-3 rounded-full ${color}`}></span>
-                    <h3 className="text-md font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-300 dark:bg-zinc-700 rounded-full px-2 py-0.5">{taskCount}</span>
+                    {task.assigned_to && (
+                        <div className="flex items-center gap-1 text-xs px-2 py-0.5 bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full" title={`Assigned to ${task.assigned_to.name}`}>
+                            <UserIcon className="h-3 w-3" /> {task.assigned_to.name.split(' ')[0]}
+                        </div>
+                    )}
                 </div>
-                <button onClick={() => onAddTaskClick(status)} className="p-1 rounded-full text-gray-400 hover:text-primary-500 hover:bg-gray-300 dark:hover:bg-gray-700">
-                    <PlusIcon className="h-5 w-5" />
-                </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {children}
             </div>
         </div>
     );
 };
 
-// --- Main Page Component ---
-export default function Index() {
-    const { auth, tasks: initialTasks, board } = usePage().props;
-    const [tasks, setTasks] = useState(initialTasks);
-    useEffect(() => {
-        setTasks(initialTasks);
-    }, [initialTasks]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [activeTab, setActiveTab] = useState('todo');
-    const [activeTask, setActiveTask] = useState(null);
-    const { data, setData, post, put, processing, errors, reset } = useForm({
-        id: null, title: '', description: '', deadline: '', status: 'todo', assigned_by: '',
+// --- 3. Kanban Column ---
+const KanbanColumn = ({ column, onAddTask, children }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `col-${column.id}`, // PREFIX ADDED
+        data: { type: 'Column', id: column.id }
     });
+    const [isEditing, setIsEditing] = useState(false);
+    const { data, setData, put } = useForm({ name: column.name });
 
-    const columns = useMemo(() => ({
-        todo: tasks.filter(task => task.status === 'todo').sort((a, b) => a.order - b.order),
-        doing: tasks.filter(task => task.status === 'doing').sort((a, b) => a.order - b.order),
-        done: tasks.filter(task => task.status === 'done').sort((a, b) => a.order - b.order),
-    }), [tasks]);
-
-    const tasksById = useMemo(() => tasks.reduce((acc, task) => {
-        acc[task.id.toString()] = task; // Key by string
-        return acc;
-    }, {}), [tasks]);
-
-    const sensors = useSensors(useSensor(PointerSensor, {
-        activationConstraint: { distance: 8 },
-    }));
-
-    // --- DRAG START ---
-    const handleDragStart = (event) => {
-        setActiveTask(tasksById[event.active.id]);
+    const handleRename = (e) => {
+        e.preventDefault();
+        put(route('columns.update', column.id), { onSuccess: () => setIsEditing(false) });
     };
 
-    // --- DRAG CANCEL ---
-    const handleDragCancel = () => {
-        setActiveTask(null);
+    return (
+        <div ref={setNodeRef} className={`flex flex-col flex-shrink-0 flex-1 min-w-[300px] max-w-sm bg-gray-200 dark:bg-zinc-800 rounded-xl transition-all ${isOver ? 'ring-2 ring-primary-500' : ''}`}>
+            <div className="p-4 border-b border-gray-300 dark:border-zinc-700 flex justify-between items-center">
+                {isEditing ? (
+                    <form onSubmit={handleRename} className="flex items-center gap-2 w-full">
+                        <TextInput autoFocus value={data.name} onChange={e => setData('name', e.target.value)} className="h-8 text-sm w-full" />
+                        <button type="submit" className="text-green-500 hover:text-green-600"><CheckCircleIcon className="h-5 w-5" /></button>
+                        <button type="button" onClick={() => setIsEditing(false)} className="text-red-500 hover:text-red-600"><XMarkIcon className="h-5 w-5" /></button>
+                    </form>
+                ) : (
+                    <div className="flex items-center gap-2 group w-full">
+                        <h3 className="text-md font-semibold text-gray-700 dark:text-gray-200">{column.name}</h3>
+                        <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary-500 transition-opacity"><PencilIcon className="h-4 w-4" /></button>
+                        <div className="flex-1"></div>
+                        <button onClick={() => confirm('Delete column?') && router.delete(route('columns.destroy', column.id))} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"><TrashIcon className="h-4 w-4" /></button>
+                    </div>
+                )}
+                {!isEditing && (
+                    <button onClick={() => onAddTask(column.id)} className="ml-2 p-1 rounded-full text-gray-400 hover:text-primary-500 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
+                        <PlusIcon className="h-5 w-5" />
+                    </button>
+                )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[150px]">{children}</div>
+        </div>
+    );
+};
+
+// --- 4. Main Page ---
+export default function Index() {
+    const { auth, board, columns: initialColumns, members } = usePage().props;
+    const [tasks, setTasks] = useState([]);
+
+    useEffect(() => {
+        const allTasks = initialColumns.flatMap(col => col.tasks.map(t => ({...t, column_id: col.id})));
+        setTasks(allTasks);
+    }, [initialColumns]);
+
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [isColModalOpen, setIsColModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [activeTask, setActiveTask] = useState(null);
+
+    const { data, setData, post, put, processing, errors, reset } = useForm({
+        id: null, title: '', description: '', deadline: '', column_id: '', assigned_to_id: '',
+    });
+    const { data: colData, setData: setColData, post: postCol, reset: resetCol } = useForm({ name: '' });
+
+    const tasksByColumn = useMemo(() => {
+        const grouped = {};
+        initialColumns.forEach(col => grouped[col.id] = []);
+        tasks.forEach(task => {
+            if (grouped[task.column_id]) grouped[task.column_id].push(task);
+        });
+        Object.keys(grouped).forEach(key => grouped[key].sort((a, b) => a.order - b.order));
+        return grouped;
+    }, [tasks, initialColumns]);
+
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+    const handleDragStart = (e) => {
+        const taskId = parseInt(e.active.id.replace('task-', ''));
+        setActiveTask(tasks.find(t => t.id === taskId));
     };
 
-    // --- 2. THE NEW OPTIMISTIC `handleDragEnd` ---
-    const handleDragEnd = (event) => {
+    const handleDragCancel = () => setActiveTask(null);
+
+    // --- FIX: handleDragOver (Visual feedback for moving between columns) ---
+    const handleDragOver = (event) => {
         const { active, over } = event;
+        if (!over) return;
 
-        // Clean up and hide overlay
+        const activeId = active.id; // "task-1"
+        const overId = over.id;     // "task-5" or "col-2"
+
+        if (activeId === overId) return;
+
+        // Find dragged task
+        const activeTask = tasks.find(t => `task-${t.id}` === activeId);
+        if (!activeTask) return;
+
+        // Is over a column or a task?
+        const isOverTask = over.data.current?.type === 'Task';
+        const isOverColumn = over.data.current?.type === 'Column';
+
+        if (!isOverTask && !isOverColumn) return;
+
+        // New Column ID
+        const overColumnId = isOverColumn
+            ? parseInt(over.id.replace('col-', ''))
+            : over.data.current.task.column_id;
+
+        // Only react if moving to a different column here
+        if (activeTask.column_id !== overColumnId) {
+            setTasks((prev) => {
+                const activeIndex = prev.findIndex(t => t.id === activeTask.id);
+                const newTasks = [...prev];
+                newTasks[activeIndex] = { ...newTasks[activeIndex], column_id: overColumnId };
+                return arrayMove(newTasks, activeIndex, activeIndex); // Just trigger re-render
+            });
+        }
+    };
+
+    const handleDragEnd = (event) => {
         const cleanup = () => setActiveTask(null);
+        const { active, over } = event;
 
         if (!over) return cleanup();
 
-        const activeId = active.id.toString();
-        const overId = over.id.toString();
-        const activeTask = tasksById[activeId];
+        const activeTaskId = parseInt(active.id.replace('task-', ''));
+        const activeTask = tasks.find(t => t.id === activeTaskId);
 
-        if (activeId === overId || !activeTask) {
-            return cleanup();
-        }
+        if (!activeTask) return cleanup();
 
         const overIsColumn = over.data.current?.type === 'Column';
         const overIsTask = over.data.current?.type === 'Task';
 
-        if (!overIsColumn && !overIsTask) return cleanup();
+        let newColumnId, newOrder;
 
-        const newStatus = overIsColumn ? over.id : over.data.current.task.status;
+        if (overIsColumn) {
+            newColumnId = parseInt(over.id.replace('col-', ''));
+            newOrder = 9999; // End of list
+        } else if (overIsTask) {
+            const overTask = over.data.current.task;
+            newColumnId = overTask.column_id;
+            const columnTasks = tasksByColumn[newColumnId];
+            const overIndex = columnTasks.findIndex(t => t.id === overTask.id);
 
-        // --- OPTIMISTIC UPDATE ---
-        // This is the new, simple logic that runs immediately
-        setTasks((prevTasks) => {
-            const activeTaskIndex = prevTasks.findIndex(t => t.id.toString() === activeId);
-            const overTaskIndex = overIsTask ? prevTasks.findIndex(t => t.id.toString() === overId) : -1;
-
-            let newTasks;
-
-            if (activeTask.status === newStatus) {
-                // 1. Moving within the same column
-                const oldIndex = columns[activeTask.status].findIndex(t => t.id.toString() === activeId);
-                const newIndex = overIsTask ? columns[newStatus].findIndex(t => t.id.toString() === overId) : columns[newStatus].length;
-                newTasks = arrayMove(prevTasks, activeTaskIndex, overTaskIndex);
-
-            } else {
-                // 2. Moving to a different column
-                // Update the task's status
-                const movedTask = { ...activeTask, status: newStatus };
-
-                // Remove from old position
-                newTasks = prevTasks.filter(t => t.id.toString() !== activeId);
-
-                // Find insert index in new column
-                const overColumnTasks = columns[newStatus];
-                let insertIndex = overIsTask ? newTasks.findIndex(t => t.id.toString() === overId) : newTasks.length;
-
-                // Insert into new position
-                newTasks.splice(insertIndex, 0, movedTask);
-            }
-
-            // 3. Re-calculate order for *all* tasks
-            return ['todo', 'doing', 'done'].flatMap(status => {
-                return newTasks
-                    .filter(t => t.status === status)
-                    .map((task, index) => ({
-                        ...task,
-                        order: index,
-                    }));
-            });
-        });
-
-        // --- BACKEND UPDATE ---
-        // We still need to calculate the final new order
-        const overColumnTasks = columns[newStatus];
-        let newIndex = overColumnTasks.length; // Default to end of list
-        if(overIsTask) {
-            newIndex = overColumnTasks.findIndex(t => t.id.toString() === overId);
-        }
-
-        router.patch(route('tasks.move', activeTask.id), {
-            status: newStatus,
-            order: newIndex,
-        }, {
-            preserveScroll: true,
-            preserveState: true, // <-- Tell Inertia not to replace our state
-            onFinish: cleanup, // Hide overlay on finish
-            onCancel: cleanup, // Hide overlay on cancel
-        });
-    };
-
-    // --- (Rest of the component: Modals, Tabs, etc. - No changes) ---
-    const openCreateModal = (status) => {
-        reset(); setData('status', status); setIsEditMode(false); setIsModalOpen(true);
-    };
-    const openEditModal = (task) => {
-        setIsEditMode(true);
-        setData({
-            id: task.id, title: task.title, description: task.description || '',
-            deadline: task.deadline ? format(parseISO(task.deadline), 'yyyy-MM-dd') : '',
-            status: task.status, assigned_by: task.assigned_by || '',
-        });
-        setIsModalOpen(true);
-    };
-    const closeModal = () => { setIsModalOpen(false); reset(); };
-    const submit = (e) => {
-        e.preventDefault();
-        if (isEditMode) {
-            put(route('tasks.update', data.id), { onSuccess: () => closeModal() });
+            // If dropping below, +1. If above, index stays.
+            // Simplified: use the index directly
+            newOrder = overIndex;
         } else {
-            post(route('tasks.store', { board: board.id }), { onSuccess: () => closeModal() });
+            return cleanup();
         }
+
+        // Only send request if something changed (roughly)
+        router.patch(route('tasks.move', activeTask.id), {
+            column_id: newColumnId,
+            order: newOrder
+        }, { preserveScroll: true, onFinish: cleanup, onCancel: cleanup });
     };
-    const TabButton = ({ tab, label, count }) => (
-        <button
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 text-center py-3 text-sm font-medium border-b-2 ${activeTab === tab ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'}`}
-        >
-            {label} <span className="text-xs ml-1 px-1.5 py-0.5 bg-gray-200 dark:bg-zinc-700 rounded-full">{count}</span>
-        </button>
-    );
+
+    // Modals
+    const openTaskModal = (colId, task = null) => {
+        if (task) {
+            setIsEditMode(true);
+            setData({
+                id: task.id, title: task.title, description: task.description || '',
+                deadline: task.deadline ? format(parseISO(task.deadline), 'yyyy-MM-dd') : '',
+                column_id: task.column_id, assigned_to_id: task.assigned_to_id || '',
+            });
+        } else {
+            setIsEditMode(false);
+            setData({ id: null, title: '', description: '', deadline: '', column_id: colId, assigned_to_id: '' });
+        }
+        setIsTaskModalOpen(true);
+    };
+    const submitTask = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if(isEditMode) put(route('tasks.update', data.id), { onSuccess: () => setIsTaskModalOpen(false) });
+        else post(route('tasks.store', { board: board.id }), { onSuccess: () => setIsTaskModalOpen(false) });
+    };
+    const submitColumn = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        postCol(route('columns.store', { board: board.id }), { onSuccess: () => { setIsColModalOpen(false); resetCol(); }});
+    };
 
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={
-                <div className="flex items-center gap-4">
-                    <Link href={route('boards.index')} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                        &larr; All Boards
-                    </Link>
-                    <span className="text-gray-300 dark:text-gray-700">/</span>
-                    <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                        {board.name}
-                    </h2>
+        <AuthenticatedLayout user={auth.user} header={
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <Link href={route('boards.index')} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">&larr;</Link>
+                    <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200">{board.name}</h2>
                 </div>
-            }
-        >
+                <PrimaryButton onClick={() => setIsColModalOpen(true)}>Add Column</PrimaryButton>
+            </div>
+        }>
             <Head title={board.name} />
 
             <DndContext
                 sensors={sensors}
-                collisionDetection={closestCenter}
+                collisionDetection={closestCorners}
                 onDragStart={handleDragStart}
+                onDragOver={handleDragOver} // <-- Added visual help
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
             >
-                {/* --- DESKTOP LAYOUT --- */}
-                <div className="hidden md:flex flex-1 gap-6 overflow-x-auto p-4 sm:p-6 lg:p-8 justify-center">
-
-                    <SortableContext items={columns.todo.map(t => t.id.toString())} strategy={verticalListSortingStrategy}>
-                        <KanbanColumn
-                            status="todo" title="To-Do" color="bg-gray-500"
-                            onAddTaskClick={openCreateModal} taskCount={columns.todo.length}
+                <div className="flex-1 flex gap-6 overflow-x-auto p-4 justify-center h-[calc(100vh-80px)]">
+                    {initialColumns.map(col => (
+                        <SortableContext
+                            key={col.id}
+                            items={(tasksByColumn[col.id] || []).map(t => `task-${t.id}`)} // PREFIXED IDs
+                            strategy={verticalListSortingStrategy}
                         >
-                            {columns.todo.map(task => (
-                                <SortableTaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                            ))}
-                        </KanbanColumn>
-                    </SortableContext>
-
-                    <SortableContext items={columns.doing.map(t => t.id.toString())} strategy={verticalListSortingStrategy}>
-                        <KanbanColumn
-                            status="doing" title="Doing" color="bg-amber-500"
-                            onAddTaskClick={openCreateModal} taskCount={columns.doing.length}
-                        >
-                            {columns.doing.map(task => (
-                                <SortableTaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                            ))}
-                        </KanbanColumn>
-                    </SortableContext>
-
-                    <SortableContext items={columns.done.map(t => t.id.toString())} strategy={verticalListSortingStrategy}>
-                        <KanbanColumn
-                            status="done" title="Done" color="bg-primary-500"
-                            onAddTaskClick={openCreateModal} taskCount={columns.done.length}
-                        >
-                            {columns.done.map(task => (
-                                <SortableTaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                            ))}
-                        </KanbanColumn>
-                    </SortableContext>
-
+                            <KanbanColumn column={col} onAddTask={() => openTaskModal(col.id)} onDeleteColumn={() => {}} taskCount={(tasksByColumn[col.id] || []).length}>
+                                {(tasksByColumn[col.id] || []).map(task => (
+                                    <SortableTaskCard key={task.id} task={task} onClick={() => openTaskModal(null, task)} />
+                                ))}
+                            </KanbanColumn>
+                        </SortableContext>
+                    ))}
                 </div>
-
-                {/* --- DragOverlay --- */}
-                <DragOverlay>
-                    {activeTask ? (
-                        <TaskCard task={activeTask} />
-                    ) : null}
+                <DragOverlay className="pointer-events-none">
+                    {activeTask ? <TaskCard task={activeTask} /> : null}
                 </DragOverlay>
-
             </DndContext>
 
-            {/* --- MOBILE (TABBED) LAYOUT --- */}
-            <div className="md:hidden flex-1 flex flex-col">
-                <div className="flex-shrink-0 flex border-b border-gray-200 dark:border-zinc-700">
-                    <TabButton tab="todo" label="To-Do" count={columns.todo.length} />
-                    <TabButton tab="doing" label="Doing" count={columns.doing.length} />
-                    <TabButton tab="done" label="Done" count={columns.done.length} />
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100 dark:bg-zinc-900">
-                    {activeTab === 'todo' && columns.todo.map(task => (
-                        <TaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                    ))}
-                    {activeTab === 'doing' && columns.doing.map(task => (
-                        <TaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                    ))}
-                    {activeTab === 'done' && columns.done.map(task => (
-                        <TaskCard key={task.id} task={task} onClick={() => openEditModal(task)} />
-                    ))}
-                    <button
-                        onClick={() => openCreateModal(activeTab)}
-                        className="w-full flex items-center justify-center gap-2 p-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400"
-                    >
-                        <PlusIcon className="h-5 w-5" />
-                        Add Task
-                    </button>
-                </div>
-            </div>
-
-            {/* --- Modal (All typos fixed) --- */}
-            <Modal show={isModalOpen} onClose={closeModal} maxWidth="2xl">
-                <form onSubmit={submit} className="p-6">
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {isEditMode ? 'Edit Task' : 'Create New Task'}
-                    </h2>
-
-                    <div className="mt-6 space-y-4">
-                        <div>
-                            <InputLabel htmlFor="title" value="Task Title" />
-                            <TextInput id="title" value={data.title} onChange={(e) => setData('title', e.target.value)} className="mt-1 block w-full" isFocused />
-                            <InputError message={errors.title} className="mt-2" />
-                        </div>
-                        <div>
-                            <InputLabel htmlFor="description" value="Description (Optional)" />
-                            <textarea id="description" value={data.description} onChange={(e) => setData('description', e.target.value)} rows={4} className="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-primary-500 dark:focus:border-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 rounded-md shadow-sm" />
-                            <InputError message={errors.description} className="mt-2" />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <InputLabel htmlFor="deadline" value="Deadline (Optional)" />
-                                <TextInput id="deadline" type="date" value={data.deadline} onChange={(e) => setData('deadline', e.target.value)} className="mt-1 block w-full" />
-                                <InputError message={errors.deadline} className="mt-2" />
-                            </div>
-                            <div>
-                                <InputLabel htmlFor="assigned_by" value="Assigned By (Optional)" />
-                                <TextInput id="assigned_by" type="text" value={data.assigned_by} onChange={(e) => setData('assigned_by', e.target.value)} className="mt-1 block w-full" placeholder="e.g. Team Lead" />
-                                <InputError message={errors.assigned_by} className="mt-2" />
-                            </div>
-                        </div>
+            {/* Modals remain unchanged */}
+            <Modal show={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)}>
+                <form onSubmit={submitTask} className="p-6 space-y-4">
+                    <h2 className="text-lg font-medium dark:text-white">{isEditMode ? 'Edit' : 'New'} Task</h2>
+                    <div><InputLabel value="Title" /><TextInput value={data.title} onChange={e => setData('title', e.target.value)} className="w-full" autoFocus /><InputError message={errors.title} /></div>
+                    <div><InputLabel value="Description" /><textarea value={data.description} onChange={e => setData('description', e.target.value)} className="w-full border-gray-300 dark:bg-zinc-900 dark:border-zinc-700 rounded-md dark:text-gray-300" rows={3} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><InputLabel value="Deadline" /><TextInput type="date" value={data.deadline} onChange={e => setData('deadline', e.target.value)} className="w-full" /></div>
+                        <div><InputLabel value="Assign To" /><select value={data.assigned_to_id} onChange={e => setData('assigned_to_id', e.target.value)} className="w-full border-gray-300 dark:bg-zinc-900 dark:border-zinc-700 rounded-md dark:text-gray-300"><option value="">Unassigned</option>{members.map(m => <option key={m.id} value={m.id}>{m.name} (@{m.username})</option>)}</select></div>
                     </div>
-                    <div className="mt-6 flex justify-end space-x-2">
-                        <button
-                            type="button"
-                            onClick={closeModal}
-                            className="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150"
-                        >
-                            Cancel
-                        </button>
-                        <PrimaryButton disabled={processing}>
-                            {isEditMode ? 'Save Changes' : 'Create Task'}
-                        </PrimaryButton>
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 border rounded dark:text-white dark:border-gray-600">Cancel</button>
+                        <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal show={isColModalOpen} onClose={() => setIsColModalOpen(false)}>
+                <form onSubmit={submitColumn} className="p-6 space-y-4">
+                    <h2 className="text-lg font-medium dark:text-white">Add New Column</h2>
+                    <TextInput value={colData.name} onChange={e => setColData('name', e.target.value)} placeholder="Column Name (e.g. Review)" className="w-full" autoFocus />
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setIsColModalOpen(false)} className="px-4 py-2 border rounded dark:text-white dark:border-gray-600">Cancel</button>
+                        <PrimaryButton>Create</PrimaryButton>
                     </div>
                 </form>
             </Modal>

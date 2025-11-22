@@ -4,74 +4,85 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\Board;
+use App\Models\User;
+use App\Models\Column;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redirect; // <-- Make sure this is imported
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rule;
+use App\Notifications\TaskAssigned;
+use App\Notifications\TaskMoved;
 
 class TaskController extends Controller
 {
-    /**
-     * Display the Kanban board for a *specific* board.
-     */
     public function index(Board $board)
     {
-        if ($board->user_id !== auth()->id()) {
+        $user = auth()->user();
+        if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
             abort(403);
         }
 
-        // --- THIS IS THE FIX ---
-        // The ->with('assignees') line is now GONE.
-        $tasks = $board->tasks()
-            ->orderBy('order', 'asc')
-            ->get();
+        $board->load(['columns.tasks.assignedTo', 'columns.tasks.assignedBy']);
+        $allMembers = $board->collaborators->push($board->user);
 
         return Inertia::render('Tasks/Index', [
             'board' => $board,
-            'tasks' => $tasks,
+            'columns' => $board->columns,
+            'members' => $allMembers,
         ]);
     }
 
-    /**
-     * Store a new task *on a specific board*.
-     */
     public function store(Request $request, Board $board)
     {
-        if ($board->user_id !== auth()->id()) {
+        $user = auth()->user();
+        if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
             abort(403);
         }
 
         $request->validate([
             'title' => 'required|string|max:255',
-            'status' => 'required|string|in:todo,doing,done',
+            'column_id' => ['required', Rule::exists('columns', 'id')->where('board_id', $board->id)],
             'description' => 'nullable|string',
             'deadline' => 'nullable|date',
-            'assigned_by' => 'nullable|string|max:255'
+            'assigned_to_id' => 'nullable|exists:users,id',
         ]);
 
-        $maxOrder = $board->tasks()
-            ->where('status', $request->status)
-            ->max('order');
+        $maxOrder = Task::where('column_id', $request->column_id)->max('order');
 
-        $board->tasks()->create([
+        // Create the task explicitly so we have the object
+        $task = Task::create([
             'title' => $request->title,
             'description' => $request->description,
-            'status' => $request->status,
+            'column_id' => $request->column_id,
+            'board_id' => $board->id,
             'deadline' => $request->deadline,
-            'assigned_by' => $request->assigned_by,
+            'user_id' => auth()->id(),
+            'assigned_to_id' => $request->assigned_to_id,
+            'assigned_by_id' => $request->assigned_to_id ? auth()->id() : null,
             'order' => $maxOrder + 1,
-            'user_id' => auth()->id()
         ]);
+
+        $task->refresh();
+
+        // --- NOTIFICATION: Task Created & Assigned ---
+        if ($request->assigned_to_id && $request->assigned_to_id !== auth()->id()) {
+            $assignee = User::find($request->assigned_to_id);
+            $assignee->notify(new TaskAssigned($task, auth()->user()));
+        }
 
         return Redirect::back()->with('success', 'Task created.');
     }
 
-    /**
-     * Update the task's content.
-     */
     public function update(Request $request, Task $task)
     {
-        if ($task->board->user_id !== auth()->id()) {
+        if (!$task->board) return Redirect::back()->with('error', 'Orphan task.');
+
+        $board = $task->board;
+        $user = auth()->user();
+
+        if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
             abort(403);
         }
 
@@ -79,85 +90,106 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'deadline' => 'nullable|date',
-            'assigned_by' => 'nullable|string|max:255'
+            'assigned_to_id' => 'nullable|exists:users,id',
         ]);
 
-        $task->update($request->only('title', 'description', 'deadline', 'assigned_by'));
+        $oldAssigneeId = $task->assigned_to_id;
+
+        $task->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'deadline' => $request->deadline,
+            'assigned_to_id' => $request->assigned_to_id,
+            // Only update 'assigned_by' if the assignee actually changed
+            'assigned_by_id' => ($request->assigned_to_id && $request->assigned_to_id != $oldAssigneeId)
+                                ? auth()->id()
+                                : $task->assigned_by_id,
+        ]);
+
+        $task->refresh();
+
+        // --- NOTIFICATION: Task Re-Assigned ---
+        // Only notify if:
+        // 1. There is an assignee
+        // 2. The assignee CHANGED (don't spam updates)
+        // 3. The assignee is not ME (don't notify myself)
+        if ($request->assigned_to_id
+            && $request->assigned_to_id != $oldAssigneeId
+            && $request->assigned_to_id !== auth()->id()) {
+
+            $assignee = User::find($request->assigned_to_id);
+            $assignee->notify(new TaskAssigned($task, auth()->user()));
+        }
 
         return Redirect::back()->with('success', 'Task updated.');
     }
 
-    /**
-     * Handle the drag-and-drop action.
-     */
     public function move(Request $request, Task $task)
     {
+        if (!$task->board) return Redirect::back();
         $board = $task->board;
-        if ($board->user_id !== auth()->id()) {
+        $user = auth()->user();
+
+        if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) {
             abort(403);
         }
 
         $request->validate([
-            'status' => 'required|string|in:todo,doing,done',
+            'column_id' => ['required', Rule::exists('columns', 'id')->where('board_id', $board->id)],
             'order' => 'required|integer|min:0',
         ]);
 
-        $oldStatus = $task->status;
+        $oldColumnId = $task->column_id;
+        $newColumnId = $request->column_id;
         $oldOrder = $task->order;
-        $newStatus = $request->status;
         $newOrder = $request->order;
 
-        DB::transaction(function () use ($task, $board, $oldStatus, $oldOrder, $newStatus, $newOrder) {
-
-            $query = $board->tasks();
-
-            if ($oldStatus === $newStatus) {
+        DB::transaction(function () use ($task, $oldColumnId, $newColumnId, $oldOrder, $newOrder) {
+            if ($oldColumnId == $newColumnId) {
                 if ($newOrder < $oldOrder) {
-                    $query->where('status', $oldStatus)
-                        ->whereBetween('order', [$newOrder, $oldOrder - 1])
-                        ->increment('order');
+                    Task::where('column_id', $oldColumnId)->whereBetween('order', [$newOrder, $oldOrder - 1])->increment('order');
                 } else {
-                    $query->where('status', $oldStatus)
-                        ->whereBetween('order', [$oldOrder + 1, $newOrder])
-                        ->decrement('order');
+                    Task::where('column_id', $oldColumnId)->whereBetween('order', [$oldOrder + 1, $newOrder])->decrement('order');
                 }
             } else {
-                // Moved to a different column
-                $board->tasks()->where('status', $oldStatus)
-                    ->where('order', '>', $oldOrder)
-                    ->decrement('order');
-
-                $board->tasks()->where('status', $newStatus)
-                    ->where('order', '>=', $newOrder)
-                    ->increment('order');
+                Task::where('column_id', $oldColumnId)->where('order', '>', $oldOrder)->decrement('order');
+                Task::where('column_id', $newColumnId)->where('order', '>=', $newOrder)->increment('order');
             }
-
-            $task->update([
-                'status' => $newStatus,
-                'order' => $newOrder,
-            ]);
+            $task->update(['column_id' => $newColumnId, 'order' => $newOrder]);
         });
 
-        // This is the correct response for Inertia D&D
+        // --- NOTIFICATION: Task Moved ---
+        if ($oldColumnId != $newColumnId) {
+            $newColumn = Column::find($newColumnId);
+            $usersToNotify = $board->collaborators->push($board->user);
+
+            // Don't notify myself
+            $usersToNotify = $usersToNotify->reject(fn($u) => $u->id === $user->id);
+
+            if($usersToNotify->count() > 0) {
+                Notification::send($usersToNotify, new TaskMoved($task, $newColumn, $user));
+            }
+        }
+
         return Redirect::back();
     }
 
-    /**
-     * Delete a task.
-     */
     public function destroy(Task $task)
     {
+        $user = auth()->user();
         $board = $task->board;
-        if ($board->user_id !== auth()->id()) {
-            abort(403);
+
+        if ($board) {
+            if ($board->user_id !== $user->id && !$board->collaborators->contains($user->id)) abort(403);
+        } else {
+            if ($task->user_id !== $user->id) abort(403);
         }
 
         $task->delete();
 
-        $board->tasks()
-            ->where('status', $task->status)
-            ->where('order', '>', $task->order)
-            ->decrement('order');
+        if ($task->column_id) {
+            Task::where('column_id', $task->column_id)->where('order', '>', $task->order)->decrement('order');
+        }
 
         return Redirect::back()->with('success', 'Task deleted.');
     }

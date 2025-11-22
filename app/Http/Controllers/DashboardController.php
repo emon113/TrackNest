@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Note;
-use App\Models\Task; // <-- 1. Import Task
+use App\Models\Task;
 
 class DashboardController extends Controller
 {
@@ -16,34 +16,44 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        // 2. Get stats (UPDATED)
+        // 1. Get stats
+        // We filter tasks by checking if their related column name is NOT 'Done'
+        $openTasksCount = $user->tasks()->whereHas('column', function ($query) {
+            $query->where('name', '!=', 'Done');
+        })->count();
+
         $stats = [
             'notes' => $user->notes()->count(),
             'notebooks' => $user->notebooks()->count(),
-            'boards' => $user->boards()->count(), // <-- NEW
-            'tasks' => $user->tasks()->where('status', '!=', 'done')->count(), // <-- NEW (Only pending)
+            'boards' => $user->boards()->count(),
+            'tasks' => $openTasksCount,
         ];
 
-        // 3. Get pinned notes (Unchanged)
+        // 2. Get pinned notes
         $pinnedNotes = $user->notes()
             ->where('is_pinned', true)
             ->latest('updated_at')
             ->take(5)
             ->get();
 
-        // 4. Get upcoming deadlines (NEW)
+        // 3. Get upcoming deadlines (Filter by Column Name != 'Done')
         $upcomingDeadlines = $user->tasks()
-            ->with('board:id,name') // Optimize query
-            ->where('status', '!=', 'done')
+            ->with(['board:id,name', 'column:id,name']) // Eager load board and column
+            ->whereHas('column', function ($query) {
+                $query->where('name', '!=', 'Done');
+            })
+            ->whereNotNull('deadline')
             ->where('deadline', '>=', now())
             ->orderBy('deadline', 'asc')
             ->take(5)
             ->get();
 
-        // 5. Get "To-Do" tasks (NEW)
+        // 4. Get "To-Do" tasks (Filter by Column Name == 'To Do')
         $myTodos = $user->tasks()
-            ->with('board:id,name') // Optimize query
-            ->where('status', 'todo')
+            ->with(['board:id,name', 'column:id,name'])
+            ->whereHas('column', function ($query) {
+                $query->where('name', 'To Do');
+            })
             ->orderBy('order', 'asc')
             ->take(5)
             ->get();
@@ -51,8 +61,8 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'pinnedNotes' => $pinnedNotes,
-            'upcomingDeadlines' => $upcomingDeadlines, // <-- Pass new data
-            'myTodos' => $myTodos,                   // <-- Pass new data
+            'upcomingDeadlines' => $upcomingDeadlines,
+            'myTodos' => $myTodos,
         ]);
     }
 }

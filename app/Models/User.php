@@ -90,4 +90,15 @@ class User extends Authenticatable
         // 3. Search the database for the username (e.g., 'johndoe')
         return $query->where('username', 'LIKE', $cleanedUsername . '%');
     }
+
+    public function sharedBoards()
+    {
+        return $this->belongsToMany(Board::class, 'board_user');
+    }
+
+    // Tasks assigned TO me
+    public function tasksAssignedToMe()
+    {
+        return $this->hasMany(Task::class, 'assigned_to_id');
+    }
 }

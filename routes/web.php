@@ -45,17 +45,32 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    // Activity Log
+    // Activity
     Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
 
-    // --- 2. ADD CONTACT ROUTES ---
+    // Contacts
     Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
     Route::post('/contacts/search', [ContactController::class, 'search'])->name('contacts.search');
     Route::post('/contacts/{user}/add', [ContactController::class, 'sendRequest'])->name('contacts.add');
     Route::patch('/contacts/{user}/accept', [ContactController::class, 'acceptRequest'])->name('contacts.accept');
     Route::delete('/contacts/{user}/remove', [ContactController::class, 'removeContact'])->name('contacts.remove');
 
-});
+    // Notifications
+    Route::post('/notifications/read-all', function () {
+        auth()->user()->unreadNotifications->markAsRead();
+        return redirect()->back();
+    })->name('notifications.read_all');
 
+    // --- ADD THIS NEW ROUTE ---
+    Route::patch('/notifications/{id}/read', function ($id) {
+        $notification = auth()->user()->notifications()->findOrFail($id);
+        $notification->markAsRead();
+        return redirect()->back();
+    })->name('notifications.read_one');
+
+    // --- ADD THIS NEW ROUTE ---
+    Route::get('/notifications/history', [App\Http\Controllers\NotificationController::class, 'index'])
+        ->name('notifications.index');
+});
 
 require __DIR__.'/auth.php';
