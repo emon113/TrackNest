@@ -62,7 +62,13 @@ export default function Authenticated({ user, header, children }) {
                                 >
                                     Tasks
                                 </NavLink>
-                                {/* --- 1. ADD THIS NEW NAVLINK --- */}
+                                <NavLink
+                                    href={route('contacts.index')}
+                                    active={route().current().startsWith('contacts')}
+                                >
+                                    Contacts
+                                </NavLink>
+                                {/* --- 1. THIS IS THE FIX (RE-ADDED) --- */}
                                 <NavLink
                                     href={route('activity.index')}
                                     active={route().current('activity.index')}
@@ -140,7 +146,7 @@ export default function Authenticated({ user, header, children }) {
                     </div>
                 </div>
 
-                {/* --- 2. ADD THE LINK TO THE RESPONSIVE MENU --- */}
+                {/* --- 2. THIS IS THE FIX (MOBILE) --- */}
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
@@ -163,6 +169,12 @@ export default function Authenticated({ user, header, children }) {
                             active={route().current().startsWith('boards') || route().current().startsWith('tasks')}
                         >
                             Tasks
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('contacts.index')}
+                            active={route().current().startsWith('contacts')}
+                        >
+                            Contacts
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
                             href={route('activity.index')}

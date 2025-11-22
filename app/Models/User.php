@@ -6,7 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Builder; // <-- 1. IMPORT BUILDER
+use Illuminate\Database\Eloquent\Builder;
 
 class User extends Authenticatable
 {
@@ -39,11 +39,7 @@ class User extends Authenticatable
     public function tasks() { return $this->hasMany(Task::class); }
     public function boards() { return $this->hasMany(Board::class); }
 
-    // --- 2. NEW CONTACT RELATIONSHIPS ---
-
-    /**
-     * Get all contact relationships this user *initiated*.
-     */
+    // --- CONTACT RELATIONSHIPS (No changes) ---
     public function contacts()
     {
         return $this->belongsToMany(User::class, 'contacts', 'user_id', 'contact_id')
@@ -51,9 +47,6 @@ class User extends Authenticatable
             ->withPivot('status');
     }
 
-    /**
-     * Get all contact relationships *sent to* this user.
-     */
     public function contactOf()
     {
         return $this->belongsToMany(User::class, 'contacts', 'contact_id', 'user_id')
@@ -61,10 +54,6 @@ class User extends Authenticatable
             ->withPivot('status');
     }
 
-    /**
-     * Get all *accepted* contacts (friends).
-     * This combines both contacts() and contactOf() where status is 'accepted'.
-     */
     public function getAcceptedContactsAttribute()
     {
         $contacts = $this->contacts()->wherePivot('status', 'accepted')->get();
@@ -72,33 +61,33 @@ class User extends Authenticatable
         return $contacts->merge($contactOf);
     }
 
-    /**
-     * Get all *pending* contact requests *sent by* this user.
-     */
     public function getPendingContactsAttribute()
     {
         return $this->contacts()->wherePivot('status', 'pending')->get();
     }
 
-    /**
-     * Get all *pending* contact requests *received by* this user.
-     */
     public function getPendingContactRequestsAttribute()
     {
         return $this->contactOf()->wherePivot('status', 'pending')->get();
     }
 
     /**
+     * --- THIS IS THE FIX ---
+     *
      * Scope a query to search for users by username.
+     * This now searches for the username directly, stripping any '@'
+     * from the *search term* first.
      */
     public function scopeSearchByUsername(Builder $query, string $username)
     {
-        // Search for @username, removing the @ if the user included it
-        $username = ltrim($username, '@');
-        if (empty($username)) {
-            return $query;
+        // 1. Clean the username by stripping the '@' if the searcher typed it
+        $cleanedUsername = ltrim($username, '@');
+
+        if (empty($cleanedUsername)) {
+            return $query->where('id', false); // Returns an empty result
         }
 
-        return $query->where('username', 'LIKE', $username . '%');
+        // 3. Search the database for the username (e.g., 'johndoe')
+        return $query->where('username', 'LIKE', $cleanedUsername . '%');
     }
 }

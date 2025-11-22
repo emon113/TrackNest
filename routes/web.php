@@ -9,7 +9,8 @@ use App\Http\Controllers\NotebookController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\BoardController;
-use App\Http\Controllers\ActivityLogController; // <-- 1. IMPORT
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ContactController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -44,8 +45,16 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    // --- 2. ADD ACTIVITY LOG ROUTE ---
+    // Activity Log
     Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
+
+    // --- 2. ADD CONTACT ROUTES ---
+    Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
+    Route::post('/contacts/search', [ContactController::class, 'search'])->name('contacts.search');
+    Route::post('/contacts/{user}/add', [ContactController::class, 'sendRequest'])->name('contacts.add');
+    Route::patch('/contacts/{user}/accept', [ContactController::class, 'acceptRequest'])->name('contacts.accept');
+    Route::delete('/contacts/{user}/remove', [ContactController::class, 'removeContact'])->name('contacts.remove');
+
 });
 
 

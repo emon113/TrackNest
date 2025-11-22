@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
@@ -31,15 +31,25 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // --- 1. THIS IS THE FIX ---
+        // We "merge" a cleaned version of the username into the request
+        // This removes the '@' before it hits the validation rules.
+        $request->merge([
+            'username' => ltrim($request->username, '@')
+        ]);
+
+        // --- 2. THE VALIDATION IS NOW CORRECT ---
+        // It validates the *cleaned* username (e.g., 'mahbubEmon')
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'username' => [ // <-- ADD THIS ENTIRE BLOCK
+            'username' => [
                 'required',
                 'string',
-                'max:7', // @ + 6 characters = 7 total
+                'alpha_dash', // Allows letters, numbers, dashes, underscores
+                'min:6',
+                'max:12',
                 Rule::unique(User::class),
-                'regex:/^@[a-zA-Z0-9]{6}$/'
             ],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -47,7 +57,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'username' => $request->username, // <-- ADD THIS
+            'username' => $request->username, // Saves the clean 'mahbubEmon'
             'password' => Hash::make($request->password),
         ]);
 
@@ -55,6 +65,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('dashboard', [], false));
     }
 }
