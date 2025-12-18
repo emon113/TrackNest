@@ -1,0 +1,1 @@
+import{c as a,n as c,s as o}from"./format-C56qCp-P.js";function e(t){return a(t,Date.now())}function u(t,n,s){const[r,i]=c(s?.in,t,n);return+o(r)==+o(i)}function m(t,n){return u(a(t,t),e(t))}export{m as a,e as c,u as i};
