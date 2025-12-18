@@ -18,15 +18,12 @@ class Task extends Model
 
     protected $casts = [
         'deadline' => 'datetime',
+        'description' => 'encrypted', // <-- ENCRYPTION ENABLED
     ];
 
-    // --- THIS IS THE CHANGE ---
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()
-            ->logFillable() // <--- Log ALL fillable fields
-            ->logOnlyDirty() // Only log what actually changed
-            ->dontSubmitEmptyLogs()
+        return LogOptions::defaults()->logFillable()->logOnlyDirty()->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Task '{$this->title}' was {$eventName}");
     }
 

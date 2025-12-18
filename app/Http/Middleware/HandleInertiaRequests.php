@@ -18,17 +18,42 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => function () use ($request) {
+                $user = $request->user();
+
+                // Calculate unread chat count
+                // Logic: Count conversations where the latest message is newer than when I last read it
+                $unreadChatCount = 0;
+                if ($user) {
+                    $unreadChatCount = $user->conversations()
+                        ->whereHas('messages', function ($query) use ($user) {
+                            $query->where('user_id', '!=', $user->id) // Message not sent by me
+                                  ->latest()
+                                  ->limit(1);
+                        })
+                        ->get()
+                        ->filter(function ($convo) {
+                            $lastMessage = $convo->messages()->latest()->first();
+                            $lastRead = $convo->pivot->last_read_at;
+
+                            if (!$lastMessage) return false; // No messages
+                            if (!$lastRead) return true; // Never read
+
+                            return $lastMessage->created_at->gt($lastRead);
+                        })
+                        ->count();
+                }
+
                 return [
-                    'user' => $request->user() ? [
-                        'id' => $request->user()->id,
-                        'name' => $request->user()->name,
-                        'email' => $request->user()->email,
-                        'username' => $request->user()->username,
+                    'user' => $user ? [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'username' => $user->username,
+                        'avatar' => $user->avatar,
+                        'role' => $user->role,
                     ] : null,
-                    // --- NOTIFICATIONS SHARED HERE ---
-                    'notifications' => $request->user()
-                        ? $request->user()->unreadNotifications
-                        : [],
+                    'notifications' => $user ? $user->unreadNotifications : [],
+                    'unread_chat_count' => $unreadChatCount, // <-- ADD THIS
                 ];
             },
             'flash' => [

@@ -17,14 +17,12 @@ class Note extends Model
         'is_pinned' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'content' => 'encrypted',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()
-            ->logFillable() // <--- Log ALL fillable fields
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs()
+        return LogOptions::defaults()->logFillable()->logOnlyDirty()->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Note '{$this->title}' was {$eventName}");
     }
 

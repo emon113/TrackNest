@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -5,17 +6,66 @@ import TextInput from '@/Components/TextInput';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
 
+const AvatarInput = ({ className, user, setData }) => {
+    // Initialize preview with existing avatar (if any)
+    const [preview, setPreview] = useState(user.avatar ? `/storage/${user.avatar}` : null);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+
+        // --- THIS IS THE FIX ---
+        // 1. Check if a file was actually selected
+        if (!file) {
+            return;
+        }
+
+        // 2. Update form data
+        setData('avatar', file);
+
+        // 3. Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    return (
+        <div className={className}>
+            <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex-shrink-0">
+                    {preview ? (
+                        <img src={preview} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                        <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-gray-400">
+                            {user.name.charAt(0)}
+                        </div>
+                    )}
+                </div>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-zinc-800 dark:file:text-gray-300 cursor-pointer"
+                />
+            </div>
+        </div>
+    );
+};
+
 export default function UpdateProfileInformation({ mustVerifyEmail, status, className = '' }) {
     const user = usePage().props.auth.user;
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+    const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: user.name,
         email: user.email,
+        avatar: null,
+        _method: 'PATCH', // Spoofing PATCH for file upload support
     });
 
     const submit = (e) => {
         e.preventDefault();
-        patch(route('profile.update'));
+        post(route('profile.update'));
     };
 
     return (
@@ -28,6 +78,10 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
+
+                {/* Avatar Input Component */}
+                <AvatarInput user={user} setData={setData} />
+
                 <div>
                     <InputLabel htmlFor="name" value="Name" />
                     <TextInput
@@ -42,7 +96,6 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                     <InputError className="mt-2" message={errors.name} />
                 </div>
 
-                {/* --- THIS IS THE CHANGE --- */}
                 <div>
                     <InputLabel htmlFor="username" value="Username" />
                     <div className="flex items-center mt-1">
@@ -52,16 +105,15 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                         <TextInput
                             id="username"
                             type="text"
-                            className="block w-full rounded-l-none" // Remove left border radius
+                            className="block w-full rounded-l-none"
                             value={user.username}
                             disabled
                         />
                     </div>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Your unique username is your identifier for contacts and chat.
+                        Your unique username cannot be changed.
                     </p>
                 </div>
-                {/* --- END OF CHANGE --- */}
 
                 <div>
                     <InputLabel htmlFor="email" value="Email" />

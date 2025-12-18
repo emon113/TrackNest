@@ -13,24 +13,17 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'username',
+        'name', 'email', 'password', 'username',
+        'avatar', 'role', 'is_banned'
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_banned' => 'boolean',
+    ];
 
     // --- EXISTING RELATIONSHIPS ---
     public function notes() { return $this->hasMany(Note::class); }
@@ -39,66 +32,41 @@ class User extends Authenticatable
     public function tasks() { return $this->hasMany(Task::class); }
     public function boards() { return $this->hasMany(Board::class); }
 
-    // --- CONTACT RELATIONSHIPS (No changes) ---
-    public function contacts()
-    {
+    // --- CONTACT RELATIONSHIPS ---
+    public function contacts() {
         return $this->belongsToMany(User::class, 'contacts', 'user_id', 'contact_id')
-            ->withTimestamps()
-            ->withPivot('status');
+            ->withTimestamps()->withPivot('status');
     }
-
-    public function contactOf()
-    {
+    public function contactOf() {
         return $this->belongsToMany(User::class, 'contacts', 'contact_id', 'user_id')
-            ->withTimestamps()
-            ->withPivot('status');
+            ->withTimestamps()->withPivot('status');
     }
-
-    public function getAcceptedContactsAttribute()
-    {
-        $contacts = $this->contacts()->wherePivot('status', 'accepted')->get();
-        $contactOf = $this->contactOf()->wherePivot('status', 'accepted')->get();
-        return $contacts->merge($contactOf);
+    public function getAcceptedContactsAttribute() {
+        return $this->contacts()->wherePivot('status', 'accepted')->get()
+            ->merge($this->contactOf()->wherePivot('status', 'accepted')->get());
     }
-
-    public function getPendingContactsAttribute()
-    {
+    public function getPendingContactsAttribute() {
         return $this->contacts()->wherePivot('status', 'pending')->get();
     }
-
-    public function getPendingContactRequestsAttribute()
-    {
+    public function getPendingContactRequestsAttribute() {
         return $this->contactOf()->wherePivot('status', 'pending')->get();
     }
-
-    /**
-     * --- THIS IS THE FIX ---
-     *
-     * Scope a query to search for users by username.
-     * This now searches for the username directly, stripping any '@'
-     * from the *search term* first.
-     */
-    public function scopeSearchByUsername(Builder $query, string $username)
-    {
-        // 1. Clean the username by stripping the '@' if the searcher typed it
-        $cleanedUsername = ltrim($username, '@');
-
-        if (empty($cleanedUsername)) {
-            return $query->where('id', false); // Returns an empty result
-        }
-
-        // 3. Search the database for the username (e.g., 'johndoe')
-        return $query->where('username', 'LIKE', $cleanedUsername . '%');
-    }
-
-    public function sharedBoards()
-    {
+    public function sharedBoards() {
         return $this->belongsToMany(Board::class, 'board_user');
     }
 
-    // Tasks assigned TO me
-    public function tasksAssignedToMe()
+    // --- THIS IS THE MISSING RELATIONSHIP (CHAT) ---
+    public function conversations()
     {
-        return $this->hasMany(Task::class, 'assigned_to_id');
+        return $this->belongsToMany(Conversation::class, 'conversation_user')
+            ->withPivot('last_read_at')
+            ->withTimestamps();
+    }
+    // --- END MISSING RELATIONSHIP ---
+
+    public function scopeSearchByUsername(Builder $query, string $username) {
+        $cleanedUsername = ltrim($username, '@');
+        if (empty($cleanedUsername)) return $query->where('id', false);
+        return $query->where('username', 'LIKE', $cleanedUsername . '%');
     }
 }

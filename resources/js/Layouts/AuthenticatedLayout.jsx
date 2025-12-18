@@ -6,11 +6,12 @@ import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'react-hot-toast';
 import ThemeToggle from '@/Components/ThemeToggle';
-import NotificationDropdown from '@/Components/NotificationDropdown'; // <-- IMPORT
+import NotificationDropdown from '@/Components/NotificationDropdown';
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'; // <-- Import Icon
 
 export default function Authenticated({ user, header, children }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
-    const { flash } = usePage().props;
+    const { flash, auth } = usePage().props; // Get 'auth' to access chat count
 
     useEffect(() => {
         if (flash.success) toast.success(flash.success, { position: 'bottom-right' });
@@ -29,23 +30,43 @@ export default function Authenticated({ user, header, children }) {
                             </div>
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink href={route('dashboard')} active={route().current('dashboard')}>Dashboard</NavLink>
-                                {/* Notebooks is gone, combined into Notes logic/sidebar */}
-                                <NavLink href={route('notes.index')} active={route().current().startsWith('notes') || route().current().startsWith('notebooks')}>Notes</NavLink>
+                                <NavLink href={route('notes.index')} active={route().current().startsWith('notes')}>Notes</NavLink>
                                 <NavLink href={route('boards.index')} active={route().current().startsWith('boards') || route().current().startsWith('tasks')}>Tasks</NavLink>
                                 <NavLink href={route('contacts.index')} active={route().current().startsWith('contacts')}>Contacts</NavLink>
                                 <NavLink href={route('activity.index')} active={route().current('activity.index')}>Activity</NavLink>
                             </div>
                         </div>
-                        <div className="hidden sm:flex sm:items-center sm:ms-6">
-                            <div className="me-3"><ThemeToggle /></div>
-                            {/* --- NOTIFICATION BELL HERE --- */}
-                            <div className="me-3"><NotificationDropdown /></div>
+                        <div className="hidden sm:flex sm:items-center sm:ms-6 gap-2">
+                            <div className="me-1"><ThemeToggle /></div>
+
+                            {/* --- CHAT ICON WITH BADGE --- */}
+                            <Link
+                                href={route('chat.index')}
+                                className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                            >
+                                <ChatBubbleLeftRightIcon className="h-6 w-6" />
+                                {auth.unread_chat_count > 0 && (
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full border-2 border-white dark:border-gray-800">
+                                        {auth.unread_chat_count > 9 ? '9+' : auth.unread_chat_count}
+                                    </span>
+                                )}
+                            </Link>
+                            {/* ----------------------------- */}
+
+                            <div className="me-1"><NotificationDropdown /></div>
 
                             <div className="ms-3 relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
                                         <span className="inline-flex rounded-md">
                                             <button type="button" className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150">
+                                                <div className="me-2 h-8 w-8 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
+                                                    {user.avatar ? (
+                                                        <img src={`/storage/${user.avatar}`} alt={user.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        user.name.charAt(0)
+                                                    )}
+                                                </div>
                                                 {user.name}
                                                 <svg className="ms-2 -me-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                                             </button>
@@ -70,6 +91,8 @@ export default function Authenticated({ user, header, children }) {
                         <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>Dashboard</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('notes.index')} active={route().current().startsWith('notes')}>Notes</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('boards.index')} active={route().current().startsWith('boards')}>Tasks</ResponsiveNavLink>
+                        {/* ADD CHAT LINK TO MOBILE MENU */}
+                        <ResponsiveNavLink href={route('chat.index')} active={route().current().startsWith('chat')}>Chat</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('contacts.index')} active={route().current().startsWith('contacts')}>Contacts</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('activity.index')} active={route().current('activity.index')}>Activity</ResponsiveNavLink>
                     </div>

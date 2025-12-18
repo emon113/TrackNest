@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,9 +36,22 @@ class ProfileController extends Controller
             $request->user()->email_verified_at = null;
         }
 
+        // --- AVATAR UPLOAD LOGIC ---
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if it exists
+            if ($request->user()->avatar) {
+                Storage::disk('public')->delete($request->user()->avatar);
+            }
+
+            // Store new avatar
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $request->user()->avatar = $path;
+        }
+
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        // --- THIS IS THE FIX FOR THE TOAST ---
+        return Redirect::route('profile.edit')->with('success', 'Profile updated successfully.');
     }
 
     /**
